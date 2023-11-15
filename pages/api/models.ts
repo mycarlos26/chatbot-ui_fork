@@ -48,7 +48,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const json = await response.json();
 
-    const models: OpenAIModel[] = json.data
+    //const models: OpenAIModel[] = json.data
+    let models: OpenAIModel[] = json.data
       .map((model: any) => {
         const model_name = (OPENAI_API_TYPE === 'azure') ? model.model : model.id;
         for (const [key, value] of Object.entries(OpenAIModelID)) {
@@ -61,6 +62,15 @@ const handler = async (req: Request): Promise<Response> => {
         }
       })
       .filter(Boolean);
+
+    // Crear un nuevo modelo que no es parte de la respuesta original.
+    const newModel: any = {
+      id: 'asst_wX0xeMMORQuwvZkRhhM0JLiQ', // Este deberá ser un identificador único para el nuevo modelo
+      name: 'Jonathan Goodman Bot' // Y este será el nombre que queramos darle al nuevo modelo
+    };
+
+    // Añadir el nuevo modelo a la lista models.
+    models = [...models, newModel];  // utilizamos el spread operator para mantener inmutabilidad
 
     return new Response(JSON.stringify(models), { status: 200 });
   } catch (error) {

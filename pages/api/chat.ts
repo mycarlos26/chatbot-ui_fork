@@ -1,5 +1,6 @@
 import { DEFAULT_SYSTEM_PROMPT, DEFAULT_TEMPERATURE } from '@/utils/app/const';
 import { OpenAIError, OpenAIStream } from '@/utils/server';
+import {createMessage} from '@/utils/server/index2';
 
 import { ChatBody, Message } from '@/types/chat';
 
@@ -38,7 +39,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     let tokenCount = prompt_tokens.length;
     let messagesToSend: Message[] = [];
-
+    let stream;
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i];
       const tokens = encoding.encode(message.content);
@@ -52,8 +53,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     encoding.free();
 
-    const stream = await OpenAIStream(model, promptToSend, temperatureToUse, key, messagesToSend);
+    if (model.name === 'Jonathan Goodman Bot'){
+      
+      console.log("Continue!!!!");
+      stream = await createMessage(messagesToSend);
 
+    }else{
+      stream = await OpenAIStream(model, promptToSend, temperatureToUse, key, messagesToSend);
+    }
     return new Response(stream);
   } catch (error) {
     console.error(error);
