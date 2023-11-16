@@ -1,5 +1,5 @@
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // Asegúrate de tener tu API key en una variable de entorno
-const API_KEY_MONGODB  = process.env.MONGODB_API_KEY;
+const API_KEY_MONGODB = process.env.MONGODB_API_KEY;
 
 const abortController = new AbortController();
 const abortSignal = abortController.signal;
@@ -11,25 +11,59 @@ const headers = {
   'OpenAI-Beta': 'assistants=v1',
 };
 
-export const createMessage = async (messages: any) => {
-  let thread_pivote = await findThreads();
+export const createMessage = async (messages: any, idconversationactual: string, idconversationselected: string) => {
+
+  thread = await findThreads(idconversationactual);
+  
+  if (thread.document) {
+    if(thread.document.idconversation === idconversationselected)// Si los datos ya están en la base de datos, devuélvelos
+      thread = thread.document.id;
+  }
+  else {
+    const url_thread = `https://api.openai.com/v1/threads`;
+    let resul_thread: any;
+    try {
+      const response_thread = await fetch(url_thread, {
+        method: 'POST',
+        headers: headers,
+      });
+
+      // Verifica que la solicitud fue exitosa
+      if (!response_thread.ok) {
+        const errorData = await response_thread.json();
+        throw new Error(
+          `Error from OpenAI: ${errorData.error?.message || response_thread.statusText}`,
+        );
+      }
+      resul_thread = await response_thread.json();
+      thread = resul_thread.id;
+      await insertDocument(resul_thread, 'threads');
+      await updateThreads(resul_thread.id, idconversationactual);
+    }
+    catch (error) {
+      console.error('Failed to post message to thread:', error);
+      throw error;
+    }
+
+  }
+
   let intervalHandle: any;
-  thread = thread_pivote.document;
+
 
   const mensaje = JSON.stringify({ messages });
 
   // Convertir el string JSON en un objeto JavaScript
   const objeto = JSON.parse(mensaje);
-    
+
   let mensaje_actual = await obtenerUltimoMensaje(objeto);
 
-//   // Obtener el subconjunto deseado como un nuevo objeto
-   const subconjunto = mensaje_actual;
-//   // Convertir el subconjunto en un string JSON
-    const mensaje_final = JSON.stringify(subconjunto, null, 4);
-  
-  await insertDocument(mensaje_actual,'mensajes');
-  const url = `https://api.openai.com/v1/threads/${thread.id}/messages`;
+  //   // Obtener el subconjunto deseado como un nuevo objeto
+  const subconjunto = mensaje_actual;
+  //   // Convertir el subconjunto en un string JSON
+  const mensaje_final = JSON.stringify(subconjunto, null, 4);
+
+  await insertDocument(mensaje_actual, 'mensajes');
+  const url = `https://api.openai.com/v1/threads/${thread}/messages`;
 
   try {
     const response = await fetch(url, {
@@ -49,7 +83,7 @@ export const createMessage = async (messages: any) => {
     // Devuelve la respuesta en formato JSON
     //return await response.json();
     let resul = await response.json();
-   await insertDocument(resul,'objetos_mensajes');
+    //await insertDocument(resul, 'objetos_mensajes');
     await createRun();
     const stream = new ReadableStream({
       start(controller) {
@@ -100,7 +134,7 @@ export const createMessage = async (messages: any) => {
 async function createRun() {
   const assistant = await findAssistants();
 
-  const url = `https://api.openai.com/v1/threads/${thread.id}/runs`;
+  const url = `https://api.openai.com/v1/threads/${thread}/runs`;
 
   try {
     const response = await fetch(url, {
@@ -131,7 +165,7 @@ async function createRun() {
 // Función auxiliar para consultar el estado de la run
 async function getRunStatus() {
   const runStatusResponse = await fetch(
-    `https://api.openai.com/v1/threads/${thread.id}/runs/${runId}`,
+    `https://api.openai.com/v1/threads/${thread}/runs/${runId}`,
     {
       headers: headers,
     },
@@ -142,7 +176,7 @@ async function getRunStatus() {
 // Función auxiliar para listar los mensajes del hilo
 async function listThreadMessages() {
   const messagesResponse = await fetch(
-    `https://api.openai.com/v1/threads/${thread.id}/messages`,
+    `https://api.openai.com/v1/threads/${thread}/messages`,
     {
       headers: headers,
     },
@@ -151,13 +185,13 @@ async function listThreadMessages() {
 }
 
 // Creamos una función asíncrona para realizar la búsqueda de un documento.
-async function findThreads() {
+async function findThreads(idconversation: any) {
   const myHeaders = new Headers();
   myHeaders.append('Content-Type', 'application/json');
   // Aquí se usa `Access-Control-Allow-Origin`, pero como cliente generalmente no es necesario
   // especificarlo a menos que crees un cliente que se ejecute fuera del navegador (como en Node.js).
   myHeaders.append(
-    'api-key',`${API_KEY_MONGODB}`,
+    'api-key', `${API_KEY_MONGODB}`,
   );
   myHeaders.append('Accept', 'application/json');
 
@@ -165,9 +199,7 @@ async function findThreads() {
     dataSource: 'Cluster0',
     database: 'GPT_Test',
     collection: 'threads',
-    filter: {
-      id: 'thread_BySrM3tvuyENlhiVvMzzVrAw',
-    },
+    filter: { "idconversation": `${idconversation}` },
   });
 
   const requestOptions: any = {
@@ -198,13 +230,60 @@ async function findThreads() {
   }
 }
 // Creamos una función asíncrona para realizar la búsqueda de un documento.
+async function updateThreads(id: any, idconversation: any) {
+  const myHeaders = new Headers();
+  myHeaders.append('Content-Type', 'application/json');
+  // Aquí se usa `Access-Control-Allow-Origin`, pero como cliente generalmente no es necesario
+  // especificarlo a menos que crees un cliente que se ejecute fuera del navegador (como en Node.js).
+  myHeaders.append(
+    'api-key', `${API_KEY_MONGODB}`,
+  );
+  myHeaders.append('Accept', 'application/json');
+
+  const raw = JSON.stringify({
+    dataSource: 'Cluster0',
+    database: 'GPT_Test',
+    collection: 'threads',
+    filter: { id: id },
+    update: { "$set": { "idconversation": idconversation } },
+  });
+
+  const requestOptions: any = {
+    method: 'POST',
+    headers: myHeaders,
+    body: raw,
+    redirect: 'follow',
+  };
+
+  try {
+    // La respuesta del endpoint es asumida como JSON según la cabecera "Accept" especificada.
+    // Usamos `fetch` con `await` para esperar la respuesta.
+    const response = await fetch(
+      'https://us-east-1.aws.data.mongodb-api.com/app/data-irbhf/endpoint/data/v1/action/updateOne',
+      requestOptions,
+    );
+    if (!response.ok) {
+      // Si la respuesta no es exitosa, lanzamos un error con el estado de la respuesta.
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    // Asumiendo que la respuesta es JSON, parseamos el resultado.
+    const result = await response.json();
+    console.log(result);
+    return result;
+
+  } catch (error) {
+    // Manejamos cualquier error que haya ocurrido durante la solicitud.
+    console.error('Error fetching the document:', error);
+  }
+}
+// Creamos una función asíncrona para realizar la búsqueda de un documento.
 async function findAssistants() {
   const myHeaders = new Headers();
   myHeaders.append('Content-Type', 'application/json');
   // Aquí se usa `Access-Control-Allow-Origin`, pero como cliente generalmente no es necesario
   // especificarlo a menos que crees un cliente que se ejecute fuera del navegador (como en Node.js).
   myHeaders.append(
-    'api-key',`${API_KEY_MONGODB}`,
+    'api-key', `${API_KEY_MONGODB}`,
   );
   myHeaders.append('Accept', 'application/json');
 
@@ -245,41 +324,41 @@ async function findAssistants() {
   }
 }
 
-async function insertDocument(data:any,collection:string) {
-    const myHeaders = new Headers();
-    myHeaders.append("Content-Type", "application/json");
-    // Use CORS headers if required by target server, otherwise remove this line
-    myHeaders.append("Access-Control-Allow-Origin", "*");
-    myHeaders.append('api-key',`${API_KEY_MONGODB}`,);
-  
-    const raw = JSON.stringify({
-      "dataSource": "Cluster0",
-      "database": "GPT_Test",
-      "collection": collection,
-      "document": data,
-    });
-  
-    const requestOptions : any = {
-      method: 'POST',
-      headers: myHeaders,
-      body: raw,
-      redirect: 'follow'
-    };
-  
-    try {
-      const response = await fetch("https://us-east-1.aws.data.mongodb-api.com/app/data-irbhf/endpoint/data/v1/action/insertOne", requestOptions);
-      const result = await response.json(); // Usar .json() si la respuesta es JSON
-      console.log(result);
-    } catch (error) {
-      console.error('Error during document insertion:', error);
-    }
+async function insertDocument(data: any, collection: string) {
+  const myHeaders = new Headers();
+  myHeaders.append("Content-Type", "application/json");
+  // Use CORS headers if required by target server, otherwise remove this line
+  myHeaders.append("Access-Control-Allow-Origin", "*");
+  myHeaders.append('api-key', `${API_KEY_MONGODB}`,);
+
+  const raw = JSON.stringify({
+    "dataSource": "Cluster0",
+    "database": "GPT_Test",
+    "collection": collection,
+    "document": data,
+  });
+
+  const requestOptions: any = {
+    method: 'POST',
+    headers: myHeaders,
+    body: raw,
+    redirect: 'follow'
+  };
+
+  try {
+    const response = await fetch("https://us-east-1.aws.data.mongodb-api.com/app/data-irbhf/endpoint/data/v1/action/insertOne", requestOptions);
+    const result = await response.json(); // Usar .json() si la respuesta es JSON
+    console.log(result);
+  } catch (error) {
+    console.error('Error during document insertion:', error);
+  }
 };
 
 // Función que obtiene el último mensaje del arreglo 'messages' de un objeto dado
- async function  obtenerUltimoMensaje(objeto:any) {
-    if (objeto && Array.isArray(objeto.messages) && objeto.messages.length > 0) {
-      return objeto.messages[objeto.messages.length - 1];
-    } else {
-      return null; // o manejar como prefieras si no hay mensajes
-    }
+async function obtenerUltimoMensaje(objeto: any) {
+  if (objeto && Array.isArray(objeto.messages) && objeto.messages.length > 0) {
+    return objeto.messages[objeto.messages.length - 1];
+  } else {
+    return null; // o manejar como prefieras si no hay mensajes
   }
+}
