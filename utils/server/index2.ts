@@ -1,18 +1,20 @@
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // Asegúrate de tener tu API key en una variable de entorno
+//const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // Asegúrate de tener tu API key en una variable de entorno
 const API_KEY_MONGODB = process.env.MONGODB_API_KEY;
 
 const abortController = new AbortController();
 const abortSignal = abortController.signal;
 let thread: any;
 let runId: any;
-const headers = {
-  Authorization: `Bearer ${OPENAI_API_KEY}`,
-  'Content-Type': 'application/json',
-  'OpenAI-Beta': 'assistants=v1',
-};
+let headers_: any;
 
-export const createMessage = async (messages: any, idconversationactual: string, idconversationselected: string) => {
-
+export const createMessage = async (messages: any, idconversationactual: string, idconversationselected: string,key :string) => {
+  
+  const headers = {
+    Authorization: `Bearer ${key ? key : process.env.OPENAI_API_KEY}`,
+    'Content-Type': 'application/json',
+    'OpenAI-Beta': 'assistants=v1',
+  };
+  headers_ = headers;
   thread = await findThreads(idconversationactual);
   
   if (thread.document) {
@@ -139,7 +141,7 @@ async function createRun() {
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: headers,
+      headers: headers_,
       body: JSON.stringify({
         assistant_id: assistant.document.id,
       }),
@@ -167,7 +169,7 @@ async function getRunStatus() {
   const runStatusResponse = await fetch(
     `https://api.openai.com/v1/threads/${thread}/runs/${runId}`,
     {
-      headers: headers,
+      headers: headers_,
     },
   );
   return await runStatusResponse.json();
@@ -178,7 +180,7 @@ async function listThreadMessages() {
   const messagesResponse = await fetch(
     `https://api.openai.com/v1/threads/${thread}/messages`,
     {
-      headers: headers,
+      headers: headers_,
     },
   );
   return await messagesResponse.json();

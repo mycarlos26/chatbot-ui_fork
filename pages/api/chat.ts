@@ -56,7 +56,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (model.name === 'Jonathan Goodman Bot'){
       
       console.log("Continue!!!!");
-      stream = await createMessage(messagesToSend,idconversation,idselectedConversation);
+      stream = await createMessage(messagesToSend,idconversation,idselectedConversation,key);
 
     }else{
       stream = await OpenAIStream(model, promptToSend, temperatureToUse, key, messagesToSend);
