@@ -17,7 +17,7 @@ export const createMessage = async (messages: any, idconversationactual: string,
   headers_ = headers;
   thread = await findThreads(idconversationactual);
   
-  if (thread.document) {
+  if (thread?.document) {
     if(thread.document.idconversation === idconversationselected)// Si los datos ya están en la base de datos, devuélvelos
       thread = thread.document.id;
   }
