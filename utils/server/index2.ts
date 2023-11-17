@@ -82,7 +82,7 @@ export const createMessage = async (messages: any, idconversationactual: string,
 
     // Devuelve la respuesta en formato JSON
     //return await response.json();
-    let resul = await response.json();
+    //let resul = await response.json();
     //await insertDocument(resul, 'objetos_mensajes');
     await createRun();
     const stream = new ReadableStream({
