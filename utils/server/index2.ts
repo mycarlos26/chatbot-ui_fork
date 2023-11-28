@@ -294,7 +294,7 @@ async function findAssistants() {
     database: 'GPT_Test',
     collection: 'assistants',
     filter: {
-      id: 'asst_wX0xeMMORQuwvZkRhhM0JLiQ',
+      id: 'asst_xr0lSMs79bfNx6TOiCs1mo8V',
     },
   });
 

@@ -65,7 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Crear un nuevo modelo que no es parte de la respuesta original.
     const newModel: any = {
-      id: 'asst_wX0xeMMORQuwvZkRhhM0JLiQ', // Este deberá ser un identificador único para el nuevo modelo
+      id: 'asst_xr0lSMs79bfNx6TOiCs1mo8V', // Este deberá ser un identificador único para el nuevo modelo
       name: 'Jonathan Goodman Bot' // Y este será el nombre que queramos darle al nuevo modelo
     };
 
